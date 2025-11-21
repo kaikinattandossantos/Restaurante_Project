@@ -1,20 +1,28 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import * as React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Provider as PaperProvider } from 'react-native-paper';
+
+import HomeScreen from './src/pages/Home';
+import MesaDetalhesScreen from './src/pages/MesaDetalhes';
+import BuscaProduto from './src/pages/BuscaProduto';
+import PedidosCliente from './src/pages/PedidosCliente';
+
+const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <PaperProvider>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: '#8B0000' }, headerTintColor: '#fff' }}>
+          
+          <Stack.Screen name="Home" component={HomeScreen} options={{ title: "Mesas" }} />
+          <Stack.Screen name="MesaDetalhes" component={MesaDetalhesScreen} options={{ title: "Detalhes da Mesa" }} />
+          <Stack.Screen name="PedidosCliente" component={PedidosCliente} options={{ title: "Pedidos do Cliente" }} />
+          <Stack.Screen name="BuscaProduto" component={BuscaProduto} options={{ title: "Buscar Produto" }} />
+
+        </Stack.Navigator>
+      </NavigationContainer>
+    </PaperProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
