@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, FlatList, TouchableOpacity } from 'react-native';
+import { View, FlatList, TouchableOpacity, ImageBackground } from 'react-native';
 import { Text, FAB, Dialog, Portal, Button, TextInput } from 'react-native-paper';
 
 // Função auxiliar para formatar hora
@@ -17,7 +17,7 @@ export default function Home({ navigation }) {
   const [numeroMesa, setNumeroMesa] = useState("");
   const [atendente, setAtendente] = useState("");
   
-  // 🔥 NOVO: Memória do último atendente
+  // Memória do último atendente
   const [ultimoAtendente, setUltimoAtendente] = useState("");
 
   // Abre modal e puxa o último nome usado
@@ -33,25 +33,26 @@ export default function Home({ navigation }) {
       id: Date.now(),
       numero: numeroMesa,
       atendente: atendente,
-      status: "livre", // 🔥 PADRÃO VERDE (Livre)
+      status: "livre", // PADRÃO VERDE (Livre)
       horarioAbertura: new Date().toISOString(),
       clientes: []
     };
 
     setMesas([...mesas, nova]);
     
-    // 🔥 Salva na memória para a próxima mesa
+    // Salva na memória para a próxima mesa
     setUltimoAtendente(atendente);
 
     setNumeroMesa("");
-    // Não limpamos o atendente aqui para facilitar, mas o abrirModalCriacao já gerencia isso
     setModalVisible(false);
   }
 
-  function corMesa(mesa) {
-    if (mesa.status === "conta") return "#e6b800";   // Amarelo
-    if (mesa.status === "ocupada") return "#8B0000"; // Vermelho
-    return "green";                                  // Verde (Livre)
+  // A função corMesa não é mais necessária para o fundo, 
+  // mas podemos usar para a cor do texto do status se quiser.
+  function getStatusColor(status) {
+    if (status === "conta") return "#e6b800";   // Amarelo
+    if (status === "ocupada") return "#8B0000"; // Vermelho
+    return "green";                             // Verde (Livre)
   }
 
   return (
@@ -81,21 +82,22 @@ export default function Home({ navigation }) {
               marginBottom: 10
             }}
           >
-            <View
+
+            <ImageBackground
+              source={require('../../../assets/mesa_icon.png')} 
               style={{
-                width: 60,
-                height: 60,
-                backgroundColor: corMesa(item),
-                borderRadius: 10,
+                width: 70,
+                height: 70,
                 justifyContent: "center",
                 alignItems: "center",
                 marginRight: 12
               }}
+              imageStyle={{ borderRadius: 10 }} // Arredonda a imagem
             >
-              <Text style={{ fontSize: 22, color: "#fff", fontWeight: "bold" }}>
+              <Text style={{ fontSize: 22, color: "#fff", fontWeight: "bold", textShadowColor: 'rgba(0, 0, 0, 0.75)', textShadowOffset: {width: -1, height: 1}, textShadowRadius: 10 }}>
                 {item.numero}
               </Text>
-            </View>
+            </ImageBackground>
 
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -104,7 +106,8 @@ export default function Home({ navigation }) {
                   {formatarHora(item.horarioAbertura)}
                 </Text>
               </View>
-              <Text style={{ color: "#666" }}>Status: {item.status.toUpperCase()}</Text>
+              {/* Usamos a cor apenas para o texto do status agora */}
+              <Text style={{ color: getStatusColor(item.status), fontWeight: 'bold' }}>Status: {item.status.toUpperCase()}</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -113,7 +116,7 @@ export default function Home({ navigation }) {
       <FAB
         icon="plus"
         style={{ position: "absolute", bottom: 20, right: 20, backgroundColor: "#8B0000" }}
-        onPress={abrirModalCriacao} // 🔥 Chama a função que preenche automático
+        onPress={abrirModalCriacao}
       />
 
       <Portal>
