@@ -2,28 +2,51 @@ import React, { useState } from 'react';
 import { View, FlatList, TouchableOpacity } from 'react-native';
 import { Text, FAB, Dialog, Portal, Button, TextInput } from 'react-native-paper';
 
+function formatarHora(dataISO) {
+  if (!dataISO) return "--:--";
+  const data = new Date(dataISO);
+  return data.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 export default function MesaDetalhes({ route, navigation }) {
   const { mesa, atualizarMesa } = route.params;
-
   const [clientes, setClientes] = useState(mesa.clientes || []);
-  const [modalVisible, setModalVisible] = useState(false);
+  
+  const [modalClienteVisible, setModalClienteVisible] = useState(false);
+  const [modalLiberarVisible, setModalLiberarVisible] = useState(false);
+  const [modalAtendenteVisible, setModalAtendenteVisible] = useState(false);
+  
   const [novoCliente, setNovoCliente] = useState("");
+  const [atendenteEdit, setAtendenteEdit] = useState("");
 
   function adicionarCliente() {
-    const novo = {
-      id: Date.now(),
-      nome: novoCliente,
-      pedidos: []
-    };
-
+    if (!novoCliente.trim()) return;
+    const novo = { id: Date.now(), nome: novoCliente, pedidos: [] };
     const novosClientes = [...clientes, novo];
+    
     setClientes(novosClientes);
-
     mesa.clientes = novosClientes;
+    mesa.status = "ocupada"; // 🔥 VIRA VERMELHA ASSIM QUE ENTRA GENTE
     atualizarMesa(mesa);
-
+    
     setNovoCliente("");
-    setModalVisible(false);
+    setModalClienteVisible(false);
+  }
+
+  function abrirModalTrocaAtendente() {
+    setAtendenteEdit(mesa.atendente);
+    setModalAtendenteVisible(true);
+  }
+
+  function salvarNovoAtendente() {
+    if (!atendenteEdit.trim()) return;
+    mesa.atendente = atendenteEdit;
+    atualizarMesa(mesa);
+    setModalAtendenteVisible(false);
+  }
+
+  function calcularTotalCliente(cliente) {
+    return cliente.pedidos.reduce((acc, item) => acc + item.preco * item.qtde, 0);
   }
 
   function pedirConta() {
@@ -32,31 +55,33 @@ export default function MesaDetalhes({ route, navigation }) {
     alert("Conta solicitada!");
   }
 
-  function resetarMesa() {
-    mesa.status = "fechada";
+  function confirmarLiberacaoMesa() {
+    mesa.status = "livre"; // 🔥 VOLTA PARA VERDE
     mesa.clientes = [];
+    mesa.horarioAbertura = new Date().toISOString(); 
     setClientes([]);
     atualizarMesa(mesa);
-    alert("Mesa finalizada e resetada!");
-  }
-
-  // 🔥 Cálculo do total por cliente
-  function calcularTotalCliente(cliente) {
-    return cliente.pedidos.reduce(
-      (acc, item) => acc + item.preco * item.qtde,
-      0
-    );
+    setModalLiberarVisible(false);
+    navigation.goBack();
   }
 
   return (
     <View style={{ flex: 1, padding: 10 }}>
-      <Text variant="titleLarge">Mesa {mesa.numero}</Text>
+      
+      <View style={{ marginBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <View>
+          <Text variant="headlineMedium">Mesa {mesa.numero}</Text>
+          <Text variant="titleMedium" style={{ color: '#555' }}>
+             Garçom: <Text style={{ fontWeight: 'bold' }}>{mesa.atendente}</Text>
+          </Text>
+          <Text style={{ fontSize: 12, color: '#777' }}>Aberta às: {formatarHora(mesa.horarioAbertura)}</Text>
+        </View>
+        <Button mode="outlined" icon="account-switch" compact onPress={abrirModalTrocaAtendente}>
+          Trocar
+        </Button>
+      </View>
 
-      <Button
-        mode="contained"
-        style={{ marginTop: 10, marginBottom: 15, backgroundColor: "#e6b800" }}
-        onPress={pedirConta}
-      >
+      <Button mode="contained" style={{ marginBottom: 15, backgroundColor: "#e6b800" }} onPress={pedirConta}>
         Pedir Conta
       </Button>
 
@@ -65,89 +90,67 @@ export default function MesaDetalhes({ route, navigation }) {
         keyExtractor={c => c.id.toString()}
         renderItem={({ item }) => {
           const total = calcularTotalCliente(item);
-
           return (
             <TouchableOpacity
               onPress={() =>
                 navigation.navigate("PedidosCliente", {
                   cliente: item,
+                  atendenteResponsavel: mesa.atendente, // 🔥 ENVIA QUEM ESTÁ NA MESA AGORA
                   atualizarCliente: (clienteAtualizado) => {
-                    const novos = clientes.map(c =>
-                      c.id === clienteAtualizado.id ? clienteAtualizado : c
-                    );
-
+                    const novos = clientes.map(c => c.id === clienteAtualizado.id ? clienteAtualizado : c);
                     setClientes(novos);
                     mesa.clientes = novos;
                     atualizarMesa(mesa);
                   }
                 })
               }
-              style={{
-                backgroundColor: "#fff",
-                padding: 12,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: "#ddd",
-                marginBottom: 12
-              }}
+              style={{ backgroundColor: "#fff", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#ddd", marginBottom: 12 }}
             >
-              <Text style={{ fontWeight: "bold", fontSize: 18 }}>
-                {item.nome}
-              </Text>
-
-              <Text style={{ color: "#777" }}>
-                {item.pedidos.length} pedidos
-              </Text>
-
-              <Text style={{ marginTop: 4, fontWeight: "bold" }}>
-                Total: R$ {total.toFixed(2)}
-              </Text>
+              <Text style={{ fontWeight: "bold", fontSize: 18 }}>{item.nome}</Text>
+              <Text style={{ color: "#777" }}>{item.pedidos.length} pedidos</Text>
+              <Text style={{ marginTop: 4, fontWeight: "bold" }}>Total: R$ {total.toFixed(2)}</Text>
             </TouchableOpacity>
           );
         }}
+        ListEmptyComponent={<Text style={{textAlign:'center', color:'#999', marginTop:20}}>Mesa Livre (Verde). Adicione um cliente para ocupar.</Text>}
       />
 
-      <FAB
-        icon="account-plus"
-        style={{
-          position: "absolute",
-          bottom: 90,
-          right: 20,
-          backgroundColor: "#8B0000"
-        }}
-        onPress={() => setModalVisible(true)}
-      />
-
-      <Button
-        mode="contained"
-        style={{
-          position: "absolute",
-          bottom: 20,
-          left: 20,
-          right: 20,
-          backgroundColor: "green"
-        }}
-        onPress={resetarMesa}
-      >
-        Finalizar Mesa / Resetar
+      <FAB icon="account-plus" style={{ position: "absolute", bottom: 90, right: 20, backgroundColor: "#8B0000" }} onPress={() => setModalClienteVisible(true)} />
+      
+      <Button mode="contained" icon="check-circle-outline" style={{ position: "absolute", bottom: 20, left: 20, right: 20, backgroundColor: "green" }} onPress={() => setModalLiberarVisible(true)}>
+        Liberar Mesa
       </Button>
 
+      {/* MODAIS */}
       <Portal>
-        <Dialog visible={modalVisible} onDismiss={() => setModalVisible(false)}>
+        <Dialog visible={modalClienteVisible} onDismiss={() => setModalClienteVisible(false)}>
           <Dialog.Title>Novo Cliente</Dialog.Title>
           <Dialog.Content>
-            <TextInput
-              placeholder="Nome do cliente"
-              value={novoCliente}
-              onChangeText={setNovoCliente}
-              style={{ backgroundColor: "#eee" }}
-            />
+            <TextInput label="Nome" value={novoCliente} onChangeText={setNovoCliente} style={{ backgroundColor: "#eee" }} />
           </Dialog.Content>
-
           <Dialog.Actions>
-            <Button onPress={() => setModalVisible(false)}>Cancelar</Button>
+            <Button onPress={() => setModalClienteVisible(false)}>Cancelar</Button>
             <Button onPress={adicionarCliente}>Adicionar</Button>
           </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={modalAtendenteVisible} onDismiss={() => setModalAtendenteVisible(false)}>
+          <Dialog.Title>Trocar Atendente</Dialog.Title>
+          <Dialog.Content>
+            <TextInput label="Novo Nome" value={atendenteEdit} onChangeText={setAtendenteEdit} style={{ backgroundColor: "#eee" }} />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setModalAtendenteVisible(false)}>Cancelar</Button>
+            <Button onPress={salvarNovoAtendente}>Salvar</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={modalLiberarVisible} onDismiss={() => setModalLiberarVisible(false)}>
+            <Dialog.Title>Liberar Mesa?</Dialog.Title>
+            <Dialog.Actions>
+                <Button onPress={() => setModalLiberarVisible(false)}>Não</Button>
+                <Button onPress={confirmarLiberacaoMesa}>Sim</Button>
+            </Dialog.Actions>
         </Dialog>
       </Portal>
     </View>

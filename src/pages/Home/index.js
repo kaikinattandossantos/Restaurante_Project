@@ -1,50 +1,61 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, FlatList, TouchableOpacity } from 'react-native';
 import { Text, FAB, Dialog, Portal, Button, TextInput } from 'react-native-paper';
 
-export default function Home({ navigation }) {
+// Função auxiliar para formatar hora
+function formatarHora(dataISO) {
+  if (!dataISO) return "--:--";
+  const data = new Date(dataISO);
+  return data.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 
+export default function Home({ navigation }) {
   const [mesas, setMesas] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
+  
+  // Inputs
   const [numeroMesa, setNumeroMesa] = useState("");
   const [atendente, setAtendente] = useState("");
+  
+  // 🔥 NOVO: Memória do último atendente
+  const [ultimoAtendente, setUltimoAtendente] = useState("");
 
-  useEffect(() => {
-    setMesas([
-      {
-        id: 1,
-        numero: "007",
-        atendente: "KAUE",
-        status: "aberta",
-        clientes: []
-      }
-    ]);
-  }, []);
+  // Abre modal e puxa o último nome usado
+  function abrirModalCriacao() {
+    if (ultimoAtendente) {
+        setAtendente(ultimoAtendente);
+    }
+    setModalVisible(true);
+  }
 
   function adicionarMesa() {
     const nova = {
       id: Date.now(),
       numero: numeroMesa,
       atendente: atendente,
-      status: "aberta",
+      status: "livre", // 🔥 PADRÃO VERDE (Livre)
+      horarioAbertura: new Date().toISOString(),
       clientes: []
     };
 
     setMesas([...mesas, nova]);
+    
+    // 🔥 Salva na memória para a próxima mesa
+    setUltimoAtendente(atendente);
+
     setNumeroMesa("");
-    setAtendente("");
+    // Não limpamos o atendente aqui para facilitar, mas o abrirModalCriacao já gerencia isso
     setModalVisible(false);
   }
 
   function corMesa(mesa) {
-    if (mesa.status === "conta") return "#e6b800";  // amarelo
-    if (mesa.status === "fechada") return "green";  // verde
-    return "#8B0000";                               // vermelho
+    if (mesa.status === "conta") return "#e6b800";   // Amarelo
+    if (mesa.status === "ocupada") return "#8B0000"; // Vermelho
+    return "green";                                  // Verde (Livre)
   }
 
   return (
     <View style={{ flex: 1, padding: 10 }}>
-
       <FlatList
         data={mesas}
         keyExtractor={(m) => m.id.toString()}
@@ -87,8 +98,13 @@ export default function Home({ navigation }) {
             </View>
 
             <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: "bold", fontSize: 18 }}>{item.atendente}</Text>
-              <Text style={{ color: "#666" }}>Status: {item.status}</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontWeight: "bold", fontSize: 18 }}>{item.atendente}</Text>
+                <Text style={{ fontSize: 12, color: '#999' }}>
+                  {formatarHora(item.horarioAbertura)}
+                </Text>
+              </View>
+              <Text style={{ color: "#666" }}>Status: {item.status.toUpperCase()}</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -97,13 +113,12 @@ export default function Home({ navigation }) {
       <FAB
         icon="plus"
         style={{ position: "absolute", bottom: 20, right: 20, backgroundColor: "#8B0000" }}
-        onPress={() => setModalVisible(true)}
+        onPress={abrirModalCriacao} // 🔥 Chama a função que preenche automático
       />
 
       <Portal>
         <Dialog visible={modalVisible} onDismiss={() => setModalVisible(false)}>
           <Dialog.Title>Nova Mesa</Dialog.Title>
-
           <Dialog.Content>
             <TextInput
               placeholder="Número da mesa"
@@ -118,14 +133,12 @@ export default function Home({ navigation }) {
               style={{ backgroundColor: "#eee" }}
             />
           </Dialog.Content>
-
           <Dialog.Actions>
             <Button onPress={() => setModalVisible(false)}>Cancelar</Button>
             <Button onPress={adicionarMesa}>Adicionar</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
-
     </View>
   );
 }
